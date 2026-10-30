@@ -1,0 +1,79 @@
+name: custom:db.docdb.orders.jdbc.extension
+version: 0.1.0
+minDynatraceVersion: "1.331.0"
+author:
+  name: Igor Osch Simões
+
+jdbc:
+  # Amazon DocumentDB JDBC driver (software.amazon.documentdb.jdbc). The "-all" JAR must be copied to the ActiveGate (see README.md)
+  driverClassName: software.amazon.documentdb.jdbc.DocumentDbDriver
+  connectionStringPattern: 'jdbc:documentdb://.+/.+'
+  connectionStringPatternErrorMessage: 'Use jdbc:documentdb://<cluster-endpoint>:27017/<database>[?options]'
+  # The driver does not support queries without a FROM clause, so both queries read the "orders" collection
+  validationQuery: SELECT COUNT(*) FROM orders
+  versionQuery: SELECT 'Amazon DocumentDB' FROM orders LIMIT 1
+
+  groups:
+    # Every new order of the last minute is ingested as a log record
+    - group: order_events
+      interval:
+        minutes: 1
+      ingest: log
+      query: |
+        SELECT
+          orders__id,
+          orderId,
+          customer,
+          country,
+          status,
+          paymentMethod,
+          amount,
+          createdAt,
+          'order_created' AS event_type
+        FROM orders
+        WHERE createdAt >= TIMESTAMPADD(MINUTE, -1, CURRENT_TIMESTAMP)
+        ORDER BY createdAt DESC
+      attributes:
+        - key: content
+          value: col:event_type
+        - key: order.id
+          value: col:orderId
+        - key: order.customer
+          value: col:customer
+        - key: order.country
+          value: col:country
+        - key: order.status
+          value: col:status
+        - key: order.payment_method
+          value: col:paymentMethod
+        - key: order.amount
+          value: col:amount
+          type: string
+
+    # Orders of the last 5 minutes aggregated by status, ingested as metrics
+    - group: order_stats
+      interval:
+        minutes: 1
+      ingest: metrics
+      query: |
+        SELECT
+          status,
+          COUNT(*) AS order_count,
+          SUM(amount) AS total_amount,
+          AVG(amount) AS avg_amount
+        FROM orders
+        WHERE createdAt >= TIMESTAMPADD(MINUTE, -5, CURRENT_TIMESTAMP)
+        GROUP BY status
+      dimensions:
+        - key: order.status
+          value: col:status
+      metrics:
+        - key: docdb.orders.count
+          value: col:order_count
+          type: gauge
+        - key: docdb.orders.amount.total
+          value: col:total_amount
+          type: gauge
+        - key: docdb.orders.amount.avg
+          value: col:avg_amount
+          type: gauge

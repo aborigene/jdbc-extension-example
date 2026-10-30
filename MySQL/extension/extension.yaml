@@ -1,0 +1,84 @@
+name: custom:db.logspixbizevent.jdbc.extension
+version: 0.1.2
+minDynatraceVersion: "1.331.0"
+author:
+  name: Igor Osch Simões
+
+jdbc:
+  # MySQL Connector/J driver class. The driver JAR must be copied to the ActiveGate (see README.md)
+  driverClassName: com.mysql.cj.jdbc.Driver
+  # Executed to validate the connection when the monitoring configuration is saved/activated
+  validationQuery: SELECT 1
+  # Executed to read the DB version, shown in the monitoring configuration status
+  versionQuery: SELECT VERSION()
+
+  groups:
+    - group: pix_started_events
+      interval:
+        minutes: 1
+      ingest: log
+      query: |
+        SELECT
+          id,
+          timestamp,
+          e2eID,
+          value,
+          origin_account,
+          destination_account,
+          destination,
+          bank,
+          type,
+          created_at,
+          'pix_started' AS event_type
+        FROM send_pix
+        WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
+        ORDER BY timestamp DESC
+      attributes:
+        - key: content
+          value: col:event_type
+        - key: transaction.id
+          value: col:id
+        - key: transaction.e2eid
+          value: col:e2eID
+        # - key: transaction.value
+        #   value: col:value
+        #   type: string
+        # - key: account.origin
+        #   value: col:origin_account
+        # - key: account.destination
+        #   value: col:destination_account
+        # - key: destination
+        #   value: col:destination
+        # - key: bank
+        #   value: col:bank
+        # - key: transaction.type
+        #   value: col:type
+        # - key: timestamp
+        #   value: col:timestamp
+
+    - group: pix_received_events
+      interval:
+        minutes: 1
+      ingest: log
+      query: |
+        SELECT
+          id,
+          timestamp,
+          e2eID,
+          status,
+          created_at,
+          'pix_received' AS event_type
+        FROM received_pix
+        WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
+        ORDER BY timestamp DESC
+      attributes:
+        - key: content
+          value: col:event_type
+        - key: transaction.id
+          value: col:id
+        - key: transaction.e2eid
+          value: col:e2eID
+        - key: transaction.status
+          value: col:status
+        - key: timestamp
+          value: col:timestamp

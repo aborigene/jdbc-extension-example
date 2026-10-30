@@ -1,0 +1,31 @@
+{
+    "json.schemas": [
+        {
+            "fileMatch": [
+                "**/openpipeline/*metrics.pipeline.json"
+            ],
+            "url": "file:///Users/igor.simoes/Library/Application%20Support/Code/User/globalStorage/dynatraceplatformextensions.dynatrace-extensions/1.348.0/metrics.pipeline.schema.json"
+        },
+        {
+            "fileMatch": [
+                "**/openpipeline/*metrics.source.json"
+            ],
+            "url": "file:///Users/igor.simoes/Library/Application%20Support/Code/User/globalStorage/dynatraceplatformextensions.dynatrace-extensions/1.348.0/metrics.source.schema.json"
+        },
+        {
+            "fileMatch": [
+                "**/openpipeline/*logs.pipeline.json"
+            ],
+            "url": "file:///Users/igor.simoes/Library/Application%20Support/Code/User/globalStorage/dynatraceplatformextensions.dynatrace-extensions/1.348.0/logs.pipeline.schema.json"
+        },
+        {
+            "fileMatch": [
+                "**/openpipeline/*logs.source.json"
+            ],
+            "url": "file:///Users/igor.simoes/Library/Application%20Support/Code/User/globalStorage/dynatraceplatformextensions.dynatrace-extensions/1.348.0/logs.source.schema.json"
+        }
+    ],
+    "yaml.schemas": {
+        "file:///Users/igor.simoes/Library/Application%20Support/Code/User/globalStorage/dynatraceplatformextensions.dynatrace-extensions/1.348.0/extension.schema.json": "extension.yaml"
+    }
+}
