@@ -75,7 +75,9 @@ cd MongoDB/scripts
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-export DOCDB_URI='mongodb://<user>:<password>@<cluster-endpoint>:27017/?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false'
+export DOCDB_HOST=<cluster-endpoint>:27017   # with an SSH tunnel: localhost:27117 (and add --tls-allow-invalid-hostnames)
+export DOCDB_USER=<user>
+export DOCDB_PASSWORD='<password>'           # optional: if not set, the script asks for it (hidden input)
 export DOCDB_TLS_CA_FILE=../global-bundle.pem
 export DOCDB_DATABASE=shop            # default: shop (created on the first insert)
 
@@ -83,7 +85,8 @@ python generate_data.py --backfill 200 --once   # 1) seed 200 orders from the la
 python generate_data.py                          # 2) keep inserting 1-5 orders every 5 seconds (Ctrl+C to stop)
 ```
 
-Options: `--interval` (seconds), `--min-batch/--max-batch`, `--collection`, `--db`. URL-encode special characters in the password.
+Options: `--interval` (seconds), `--min-batch/--max-batch`, `--collection`, `--db`, `--host/--user/--password` (same as the env vars; avoid `--password` because command-line arguments are visible in `ps` and shell history).
+The credentials are passed as parameters, so the password needs no URL-encoding. `--uri` / `DOCDB_URI` is still accepted if you prefer a full connection string. The user needs `readWrite` on the database; the user is authenticated against `admin`, which is where DocumentDB stores all users.
 
 Each document looks like this:
 

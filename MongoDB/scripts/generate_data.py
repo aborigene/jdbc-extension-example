@@ -2,7 +2,9 @@
 """Keeps feeding an Amazon DocumentDB / MongoDB collection with fake "orders".
 
 Usage:
-  export DOCDB_URI="mongodb://<user>:<password>@<cluster-endpoint>:27017/?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false"
+  export DOCDB_HOST=<cluster-endpoint>:27017        # or localhost:27117 with an SSH tunnel
+  export DOCDB_USER=<user>
+  export DOCDB_PASSWORD=<password>                  # optional: if unset, you are prompted (hidden input)
   export DOCDB_TLS_CA_FILE=./global-bundle.pem      # DocumentDB only
   python generate_data.py                           # continuous, ~1 batch every 5s
   python generate_data.py --backfill 200 --once     # just create 200 documents and exit
@@ -11,6 +13,7 @@ Document shape (flat on purpose, so the JDBC driver maps it to a single SQL tabl
   orderId, customer, country, status, paymentMethod, items, amount, createdAt (BSON Date)
 """
 import argparse
+import getpass
 import os
 import random
 import signal
@@ -45,7 +48,14 @@ def make_order(created_at: datetime) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--uri", default=os.getenv("DOCDB_URI"), help="connection URI (or env DOCDB_URI)")
+    ap.add_argument("--host", default=os.getenv("DOCDB_HOST"), help="host[:port] (or env DOCDB_HOST)")
+    ap.add_argument("--user", default=os.getenv("DOCDB_USER"), help="user (or env DOCDB_USER)")
+    ap.add_argument("--password", default=os.getenv("DOCDB_PASSWORD"),
+                    help="password (or env DOCDB_PASSWORD). Prefer the env var or the prompt: arguments show up in `ps`")
+    ap.add_argument("--uri", default=os.getenv("DOCDB_URI"),
+                    help="full connection URI instead of host/user/password (or env DOCDB_URI)")
+    ap.add_argument("--tls-allow-invalid-hostnames", action="store_true",
+                    help="needed when connecting through an SSH tunnel (localhost)")
     ap.add_argument("--ca-file", default=os.getenv("DOCDB_TLS_CA_FILE"), help="global-bundle.pem (or env DOCDB_TLS_CA_FILE)")
     ap.add_argument("--db", default=os.getenv("DOCDB_DATABASE", "shop"))
     ap.add_argument("--collection", default=os.getenv("DOCDB_COLLECTION", "orders"))
@@ -56,14 +66,32 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="exit after the backfill / one batch")
     args = ap.parse_args()
 
-    if not args.uri:
-        print("Set DOCDB_URI or pass --uri", file=sys.stderr)
-        return 2
-
     kwargs = {"retryWrites": False}  # DocumentDB does not support retryable writes
     if args.ca_file:
         kwargs["tlsCAFile"] = args.ca_file
-    client = MongoClient(args.uri, serverSelectionTimeoutMS=10000, **kwargs)
+    if args.tls_allow_invalid_hostnames:
+        kwargs["tlsAllowInvalidHostnames"] = True
+
+    if args.uri:
+        client = MongoClient(args.uri, serverSelectionTimeoutMS=10000, **kwargs)
+    else:
+        if not args.host or not args.user:
+            print("Set DOCDB_HOST and DOCDB_USER (or pass --host/--user), or use DOCDB_URI", file=sys.stderr)
+            return 2
+        password = args.password or getpass.getpass(f"Password for {args.user}: ")
+        # Credentials are passed as parameters, so no URL-encoding of special characters is needed.
+        # Without replicaSet/readPreference the driver connects to the primary, which is what we want for writes.
+        client = MongoClient(
+            host=args.host.split(":")[0],
+            port=int(args.host.split(":")[1]) if ":" in args.host else 27017,
+            username=args.user,
+            password=password,
+            authSource="admin",
+            tls=True,
+            serverSelectionTimeoutMS=10000,
+            directConnection=True,
+            **kwargs,
+        )
     client.admin.command("ping")
     coll = client[args.db][args.collection]
     coll.create_index([("createdAt", ASCENDING)])
