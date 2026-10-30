@@ -15,3 +15,6 @@
 config
 dist
 logs
+*.jar
+*.pem
+.venv

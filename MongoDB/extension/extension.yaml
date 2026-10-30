@@ -1,5 +1,5 @@
 name: custom:db.docdb.orders.jdbc.extension
-version: 0.1.0
+version: 0.1.2
 minDynatraceVersion: "1.331.0"
 author:
   name: Igor Osch Simões
@@ -7,7 +7,7 @@ author:
 jdbc:
   # Amazon DocumentDB JDBC driver (software.amazon.documentdb.jdbc). The "-all" JAR must be copied to the ActiveGate (see README.md)
   driverClassName: software.amazon.documentdb.jdbc.DocumentDbDriver
-  connectionStringPattern: 'jdbc:documentdb://.+/.+'
+  connectionStringPattern: '^jdbc:documentdb://.+/.+$'
   connectionStringPatternErrorMessage: 'Use jdbc:documentdb://<cluster-endpoint>:27017/<database>[?options]'
   # The driver does not support queries without a FROM clause, so both queries read the "orders" collection
   validationQuery: SELECT COUNT(*) FROM orders
